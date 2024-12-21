@@ -38,7 +38,7 @@ namespace FlightReservation
     {
         private ReservationNode head;                      // Head node of the main reservations list
         private ReservationNode urgentHead;                // Separate head node for urgent reservations
-        private const string filePath = @"C:\ReservationData\reservations.txt"; // Path to save reservations
+        private const string filePath = @"C:\Users\johno\Documents\ReservationData\Reservations.txt"; // Path to save reservations
 
         // Dictionary to manage seat availability for each flight
         private Dictionary<string, HashSet<string>> seatAvailability = new Dictionary<string, HashSet<string>>();
@@ -269,39 +269,188 @@ namespace FlightReservation
         // TODO: Implement Priority Queue for Urgent Reservations (Option 1)
         public void AddUrgentReservation(string name, string flightNumber, string seatNumber, DateTime bookingDate, int reservationID)
         {
-            // TODO: Add logic here to add urgent reservations in sorted order by booking date
-            // Check if the reservation is urgent (within the next 24 hours)
+            // Check if the booking date is within 24 hours
+            if ((bookingDate - DateTime.Now).TotalHours > 24)
+            {
+                Console.WriteLine("This reservation is not urgent (not within 24 hours).");
+                return;
+            }
 
-            //   Y  O  U  R    C  O  D  E    G  O  E  S    H  E  R  E  .  .  .  
+            // Create a new node for the urgent reservation
+            ReservationNode newNode = new ReservationNode(name, flightNumber, seatNumber, bookingDate, reservationID);
+
+            // If the urgent list is empty or the new node has the earliest booking date, add it at the head
+            if (urgentHead == null || urgentHead.BookingDate > newNode.BookingDate)
+            {
+                newNode.next = urgentHead;
+                if (urgentHead != null) urgentHead.prev = newNode;
+                urgentHead = newNode;
+            }
+            else
+            {
+                // Traverse the urgent list to find the correct sorted position for the new node
+                ReservationNode current = urgentHead;
+                while (current.next != null && current.next.BookingDate < newNode.BookingDate)
+                {
+                    current = current.next;
+                }
+
+                // Insert the new node into the list
+                newNode.next = current.next;
+                if (current.next != null) current.next.prev = newNode;
+                current.next = newNode;
+                newNode.prev = current;
+            }
+
+            Console.WriteLine($"Urgent reservation added for {name} on flight {flightNumber}.");
+            SaveReservationsToFile(); // Save the updated list to the file
         }
+        
 
         // TODO: Implement Binary Search for Fast Flight Search (Option 2)
         public void SearchReservationsBinary(string flightNumber)
         {
-            // TODO: Implement binary search for fast retrieval of flight reservations
-            // Convert linked list to list for binary search
+                    // Convert the linked list to a List<ReservationNode> for sorting and searching
+            List<ReservationNode> reservations = new List<ReservationNode>();
+            ReservationNode current = head;
 
-            //   Y  O  U  R    C  O  D  E    G  O  E  S    H  E  R  E  .  .  .  
+            while (current != null)
+            {
+                reservations.Add(current);
+                current = current.next;
+            }
+
+            // Sort the reservations by FlightNumber
+            reservations = reservations.OrderBy(r => r.FlightNumber).ToList();
+
+            // Binary search logic
+            int left = 0, right = reservations.Count - 1;
+            bool found = false;
+
+            while (left <= right)
+            {
+                int mid = (left + right) / 2;
+                int comparison = string.Compare(reservations[mid].FlightNumber, flightNumber, StringComparison.OrdinalIgnoreCase);
+
+                if (comparison == 0) // FlightNumber found
+                {
+                    Console.WriteLine($"Found: Passenger {reservations[mid].PassengerName}, Seat {reservations[mid].SeatNumber}, Booking Date {reservations[mid].BookingDate}, Reservation ID {reservations[mid].ReservationID}");
+                    found = true;
+                    break;
+                }
+                else if (comparison < 0)
+                {
+                    left = mid + 1; // Search the right half
+                }
+                else
+                {
+                    right = mid - 1; // Search the left half
+                }
+            }
+
+            // If no matching reservation is found
+            if (!found)
+            {
+                Console.WriteLine($"No reservations found for flight {flightNumber}.");
+            }  
 
         }
 
         // TODO: Implement Hash Table for Seat Management (Option 3)
         public void ManageSeatAvailability(string flightNumber, string seatNumber, bool isAvailable)
         {
-            // TODO: Manage seat availability with a hash table, add/remove seats based on availability status
-            // Initialize the flight's seat collection if it doesn't exist
+            // If the flight does not exist in the dictionary, initialize it with an empty HashSet
+            if (!seatAvailability.ContainsKey(flightNumber))
+            {
+                seatAvailability[flightNumber] = new HashSet<string>();
+            }
 
-            //   Y  O  U  R    C  O  D  E    G  O  E  S    H  E  R  E  .  .  .  
-
+            if (isAvailable)
+            {
+                // Add the seat to the available seats for the flight
+                seatAvailability[flightNumber].Add(seatNumber);
+                Console.WriteLine($"Seat {seatNumber} on flight {flightNumber} is now available.");
+            }
+            else
+            {
+                // Remove the seat from the available seats for the flight
+                if (seatAvailability[flightNumber].Contains(seatNumber))
+                {
+                    seatAvailability[flightNumber].Remove(seatNumber);
+                    Console.WriteLine($"Seat {seatNumber} on flight {flightNumber} has been marked as unavailable.");
+                }
+                else
+                {
+                    Console.WriteLine($"Seat {seatNumber} was not available to begin with.");
+                }
+            }
         }
 
         // TODO: Implement Merge Sort for Sorting Reservations (Option 4)
         public void SortReservationsByDate()
         {
-            // TODO: Implement merge sort to sort reservations by booking date
-            // Recursively divide the list, sort, and merge in ascending booking date order
+            head = MergeSort(head); // Perform merge sort on the linked list
+            Console.WriteLine("Reservations have been sorted by booking date.");
+        }
 
-            //   Y  O  U  R    C  O  D  E    G  O  E  S    H  E  R  E  .  .  .  
+        // Recursive merge sort function
+        private ReservationNode MergeSort(ReservationNode node)
+        {
+            if (node == null || node.next == null) return node; // Base case for recursion
+
+            // Split the linked list into two halves
+            ReservationNode middle = GetMiddle(node);
+            ReservationNode nextOfMiddle = middle.next;
+
+            middle.next = null; // Break the link between the two halves
+            if (nextOfMiddle != null) nextOfMiddle.prev = null;
+
+            // Recursively sort both halves
+            ReservationNode left = MergeSort(node);
+            ReservationNode right = MergeSort(nextOfMiddle);
+
+            // Merge the sorted halves
+            return Merge(left, right);
+        }
+
+        // Merges two sorted linked lists into one
+        private ReservationNode Merge(ReservationNode left, ReservationNode right)
+        {
+            if (left == null) return right; // If one list is empty, return the other
+            if (right == null) return left;
+
+            // Compare the booking dates to determine the order
+            if (left.BookingDate <= right.BookingDate)
+            {
+                left.next = Merge(left.next, right);
+                if (left.next != null) left.next.prev = left;
+                left.prev = null;
+                return left;
+            }
+            else
+            {
+                right.next = Merge(left, right.next);
+                if (right.next != null) right.next.prev = right;
+                right.prev = null;
+                return right;
+            }
+        }
+
+        // Finds the middle node of the linked list
+        private ReservationNode GetMiddle(ReservationNode node)
+        {
+            if (node == null) return null;
+
+            ReservationNode slow = node, fast = node;
+
+            // Use the slow and fast pointer approach to find the middle
+            while (fast.next != null && fast.next.next != null)
+            {
+                slow = slow.next;
+                fast = fast.next.next;
+            }
+
+            return slow;
         }
 
 
@@ -347,41 +496,62 @@ namespace FlightReservation
                             break;
 
                         case "1":
-                            // TODO - You must prompt for details and call AddUrgentReservation for urgent reservations
-                            Console.WriteLine("Urgent reservation functionality not yet implemented.");
+                            // Prompt user for the passenger's name
+                            Console.Write("Enter Passenger Name: ");
+                            string urgentName = Console.ReadLine();
 
-                            // Replace the 'Console.WriteLine("Urgent reservation functionality not yet implemented.")' with your method call to Option 1
-                            //   Y  O  U  R    O  P  T  I  O  N    1    M  E  T  H  O  D    C  A  L  L    G  O  E  S    H  E  R  E  .  .  .  
+                            // Prompt user for the flight number
+                            Console.Write("Enter Flight Number: ");
+                            string urgentFlightNumber = Console.ReadLine();
+
+                            // Prompt user for the seat number
+                            Console.Write("Enter Seat Number: ");
+                            string urgentSeatNumber = Console.ReadLine();
+
+                            // Prompt user for the booking date in a valid format
+                            Console.Write("Enter Booking Date (yyyy-mm-dd): ");
+                            DateTime urgentBookingDate = DateTime.Parse(Console.ReadLine());
+
+                            // Prompt user for the unique reservation ID
+                            Console.Write("Enter Reservation ID: ");
+                            int urgentReservationID = int.Parse(Console.ReadLine());
+
+                            // Call AddUrgentReservation to add the urgent booking
+                            reservationList.AddUrgentReservation(urgentName, urgentFlightNumber, urgentSeatNumber, urgentBookingDate, urgentReservationID); 
 
                             break;
 
                         case "2":
-                            // TODO - You must call SearchReservationsBinary for a fast search by flight number
-                            Console.WriteLine("Binary search functionality not yet implemented.");
+                            // Prompt user for the flight number to search for
+                            Console.Write("Enter Flight Number to Search: ");
+                            string binarySearchFlightNumber = Console.ReadLine();
 
-
-                            // Replace the 'Console.WriteLine("Binary search functionality not yet implemented.")' with your method call to Option 2
-                            //   Y  O  U  R    O  P  T  I  O  N    2    M  E  T  H  O  D    C  A  L  L    G  O  E  S    H  E  R  E  .  .  . 
+                            // Call SearchReservationsBinary to perform binary search
+                            reservationList.SearchReservationsBinary(binarySearchFlightNumber);
 
                             break;
 
                         case "3":
-                            // TODO - You must call ManageSeatAvailability for seat management
-                            Console.WriteLine("Seat management functionality not yet implemented.");
+                            // Prompt user for the flight number to manage
+                            Console.Write("Enter Flight Number: ");
+                            string flightNumberForSeat = Console.ReadLine();
 
+                            // Prompt user for the seat number to manage
+                            Console.Write("Enter Seat Number: ");
+                            string seatNumber = Console.ReadLine();
 
-                            // Replace the 'Console.WriteLine("Seat management functionality not yet implemented.")' with your method call to Option 3
-                            //   Y  O  U  R    O  P  T  I  O  N    3    M  E  T  H  O  D    C  A  L  L    G  O  E  S    H  E  R  E  .  .  . 
+                            // Prompt user for the availability status (true or false)
+                            Console.Write("Is the seat available? (true/false): ");
+                            bool isAvailable = bool.Parse(Console.ReadLine());
+
+                            // Call ManageSeatAvailability to update seat availability
+                            reservationList.ManageSeatAvailability(flightNumberForSeat, seatNumber, isAvailable);
 
                             break;
 
                         case "4":
-                            // TODO - You must call SortReservationsByDate to sort reservations by booking date
-                            Console.WriteLine("Sorting functionality not yet implemented.");
-
-
-                            // Replace the 'Console.WriteLine("Sorting functionality not yet implemented.")' with your method call to Option 4
-                            //   Y  O  U  R    O  P  T  I  O  N    4    M  E  T  H  O  D    C  A  L  L    G  O  E  S    H  E  R  E  .  .  . 
+                            // Call SortReservationsByDate to sort the linked list by booking date
+                            reservationList.SortReservationsByDate();
 
 
                             break;
